@@ -26,13 +26,16 @@ function AppShell({ children }) {
 export default function App() {
   return (
     <AuthProvider>
-      <BrowserRouter>
+      <BrowserRouter
+        future={{
+          v7_startTransition:   true,
+          v7_relativeSplatPath: true,
+        }}
+      >
         <Routes>
-          {/* Guest only — redirect to dashboard if already logged in */}
           <Route path="/login"    element={<GuestRoute><LoginPage /></GuestRoute>} />
           <Route path="/register" element={<GuestRoute><RegisterPage /></GuestRoute>} />
 
-          {/* Protected */}
           <Route path="/dashboard"           element={<AppShell><DashboardPage /></AppShell>} />
           <Route path="/templates"           element={<AppShell><TemplatesPage /></AppShell>} />
           <Route path="/templates/new"       element={<AppShell><TemplateEditorPage /></AppShell>} />
