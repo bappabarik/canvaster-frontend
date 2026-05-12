@@ -229,7 +229,6 @@ export default function TemplateEditorPage() {
   const [error, setError] = useState("");
   const [history, setHistory] = useState([]);
   const [histIdx, setHistIdx] = useState(-1);
-  const [canvasReady, setCanvasReady] = useState(false)
   const skipHistory = useRef(false);
 
   const categories = [
@@ -245,6 +244,8 @@ export default function TemplateEditorPage() {
 
   // ── Init canvas ─────────────────────────────────────────────────────────────
   useEffect(() => {
+    if (!canvasRef.current) return;
+
     const fc = new fabric.Canvas(canvasRef.current, {
       width,
       height,
@@ -265,7 +266,10 @@ export default function TemplateEditorPage() {
     fc.on("object:removed", () => saveHistory(fc));
 
     // IMPORTANT
-    setCanvasReady(true);
+
+    if (!isEdit) return;
+
+    loadTemplate();
 
     return () => {
       fc.dispose();
@@ -273,64 +277,51 @@ export default function TemplateEditorPage() {
   }, []);
 
   // ── Load existing template ───────────────────────────────────────────────────
-  useEffect(() => {
-
-  if (!isEdit || !canvasReady) return
-
   async function loadTemplate() {
+    console.log("runing....");
 
     try {
+      const { data } = await api.get(`/templates/${id}`);
 
-      const { data } = await api.get(`/templates/${id}`)
+      const t = data.data;
+      console.log("Loading......", data);
 
-      const t = data.data
+      setName(t.name);
+      setCategory(t.category);
 
-      setName(t.name)
-      setCategory(t.category)
+      setWidth(t.width_px);
+      setHeight(t.height_px);
 
-      setWidth(t.width_px)
-      setHeight(t.height_px)
+      const fc = fabricRef.current;
 
-      const fc = fabricRef.current
+      fc.setWidth(t.width_px);
+      fc.setHeight(t.height_px);
 
-      fc.setWidth(t.width_px)
-      fc.setHeight(t.height_px)
+      let canvasJson = t.canvas_json;
 
-      let canvasJson = t.canvas_json
-
-      if (typeof canvasJson === 'string') {
-        canvasJson = JSON.parse(canvasJson)
+      if (typeof canvasJson === "string") {
+        canvasJson = JSON.parse(canvasJson);
       }
 
       fc.loadFromJSON(canvasJson, () => {
-
-        fc.renderAll()
+        fc.renderAll();
 
         // force rerender
-        fc.calcOffset()
+        fc.calcOffset();
 
         // initial history
-        const initial = JSON.stringify(fc.toJSON())
-        setHistory([initial])
-        setHistIdx(0)
-
-      })
-
+        const initial = JSON.stringify(fc.toJSON());
+        setHistory([initial]);
+        setHistIdx(0);
+      });
     } catch (err) {
-
-      console.error(err)
-      setError('Failed to load template')
-
+      console.error(err);
+      setError("Failed to load template");
     } finally {
-
-      setLoading(false)
-
+      setLoading(false);
     }
   }
-
-  loadTemplate()
-
-}, [id, isEdit, canvasReady])
+  //   useEffect(() => {}, [id, isEdit, canvasReady]);
 
   // ── History ──────────────────────────────────────────────────────────────────
   function saveHistory(fc) {
@@ -426,49 +417,60 @@ export default function TemplateEditorPage() {
   }
 
   function addImagePlaceholder() {
-    const key = prompt("Placeholder key (e.g. photo, logo):", "photo");
-    if (!key) return;
-    const rect = new fabric.Rect({
-      left: 200,
-      top: 50,
-      width: 180,
-      height: 220,
-      fill: "#f0f4ff",
-      stroke: "#6366f1",
-      strokeWidth: 2,
-      strokeDashArray: [6, 4],
-      rx: 4,
-      ry: 4,
-    });
-    const text = new fabric.Text(`{${key}}`, {
-      left: 200 + 90,
-      top: 50 + 110,
-      fontSize: 14,
-      fill: "#6366f1",
-      fontFamily: "Arial",
-      originX: "center",
-      originY: "center",
-      selectable: false,
-      evented: false,
-    });
-    const group = new fabric.Group([rect, text], {
-      left: 200,
-      top: 50,
-      _placeholderKey: key,
-      _isImagePlaceholder: true,
-    });
-    group.toJSON = (function (original) {
-      return function (props) {
-        const json = original.call(this, props);
-        json._placeholderKey = this._placeholderKey;
-        json._isImagePlaceholder = this._isImagePlaceholder;
-        return json;
+  const key = prompt("Placeholder key (e.g. photo, logo):", "photo");
+  if (!key) return;
+
+  const W = 180, H = 220;
+
+  // Children coords are relative to group CENTER
+  const rect = new fabric.Rect({
+    left: -W / 2,
+    top:  -H / 2,
+    width: W,
+    height: H,
+    fill: "#f0f4ff",
+    stroke: "#6366f1",
+    strokeWidth: 2,
+    strokeDashArray: [6, 4],
+    rx: 4,
+    ry: 4,
+  });
+
+  const text = new fabric.Text(`{${key}}`, {
+    left: 0,
+    top:  0,
+    fontSize: 14,
+    fill: "#6366f1",
+    fontFamily: "Arial",
+    originX: "center",
+    originY: "center",
+    selectable: false,
+    evented: false,
+  });
+
+  const group = new fabric.Group([rect, text], {
+    left: 200,
+    top:  50,
+    // Store on the object directly — passed via toObject's extra props
+    _placeholderKey:       key,
+    _isImagePlaceholder:   true,
+  });
+
+  // Tell Fabric to include these custom props in toJSON/toObject
+  group.toObject = (function (original) {
+    return function (extraProps) {
+      return {
+        ...original.call(this, extraProps),
+        _placeholderKey:     this._placeholderKey,
+        _isImagePlaceholder: this._isImagePlaceholder,
       };
-    })(group.toJSON);
-    fabricRef.current.add(group);
-    fabricRef.current.setActiveObject(group);
-    fabricRef.current.renderAll();
-  }
+    };
+  })(group.toObject);   // ← override toObject, NOT toJSON
+
+  fabricRef.current.add(group);
+  fabricRef.current.setActiveObject(group);
+  fabricRef.current.renderAll();
+}
 
   function uploadBgImage(e) {
     const file = e.target.files[0];
@@ -506,32 +508,35 @@ export default function TemplateEditorPage() {
 
   // ── Save ──────────────────────────────────────────────────────────────────────
   async function handleSave() {
-    setSaving(true);
-    setError("");
-    try {
-      const canvasJson = JSON.stringify(fabricRef.current.toJSON());
-      const payload = {
-        name,
-        category,
-        canvas_json: canvasJson,
-        width_px: width,
-        height_px: height,
-      };
+  setSaving(true);
+  setError("");
+  try {
+    // Tell Fabric to include custom props in the serialized JSON
+    const canvasJson = JSON.stringify(
+      fabricRef.current.toJSON(["_placeholderKey", "_isImagePlaceholder"])
+    );
+    const payload = {
+      name,
+      category,
+      canvas_json: canvasJson,
+      width_px: width,
+      height_px: height,
+    };
 
-      if (isEdit) {
-        await api.put(`/templates/${id}`, payload);
-      } else {
-        const { data } = await api.post("/templates", payload);
-        navigate(`/templates/${data.data.id}/edit`, { replace: true });
-      }
-    } catch (err) {
-      setError(
-        err.response?.data?.error?.description || "Failed to save template",
-      );
-    } finally {
-      setSaving(false);
+    if (isEdit) {
+      await api.put(`/templates/${id}`, payload);
+    } else {
+      const { data } = await api.post("/templates", payload);
+      navigate(`/templates/${data.data.id}/edit`, { replace: true });
     }
+  } catch (err) {
+    setError(
+      err.response?.data?.error?.description || "Failed to save template",
+    );
+  } finally {
+    setSaving(false);
   }
+}
 
   // ── Canvas size change ────────────────────────────────────────────────────────
   function applySize() {
@@ -540,12 +545,12 @@ export default function TemplateEditorPage() {
     fabricRef.current.renderAll();
   }
 
-  if (loading)
-    return (
-      <div className="flex items-center justify-center h-64">
-        <Spinner className="w-8 h-8" />
-      </div>
-    );
+  //   if (loading)
+  //     return (
+  //       <div className="flex items-center justify-center h-64">
+  //         <Spinner className="w-8 h-8" />
+  //       </div>
+  //     );
 
   return (
     <div className="flex flex-col h-[calc(100vh-56px)] lg:h-[calc(100vh-0px)] -mx-4 sm:-mx-6 lg:-mx-8 -my-6 lg:-my-8">
@@ -650,7 +655,13 @@ export default function TemplateEditorPage() {
         </div>
 
         {/* Canvas area */}
-        <div className="flex-1 overflow-auto bg-gray-100 flex items-start justify-center p-4 sm:p-8">
+        <div className="flex-1 overflow-auto bg-gray-100 flex items-start justify-center p-4 sm:p-8 relative">
+          {loading && (
+            <div className="absolute inset-0 bg-white/70 z-10 flex items-center justify-center">
+              <Spinner className="w-8 h-8" />
+            </div>
+          )}
+
           <div className="shadow-xl">
             <canvas ref={canvasRef} />
           </div>
