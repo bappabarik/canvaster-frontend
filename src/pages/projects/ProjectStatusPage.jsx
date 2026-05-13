@@ -35,38 +35,36 @@ export default function ProjectStatusPage() {
 
   usePolling(fetchStatus, onData, shouldStop, 3000, true);
 
- async function handleDownload() {
-  setDownloading(true)
-  setError('')
+  async function handleDownload() {
+    setDownloading(true);
+    setError("");
 
-  try {
-    const { data } = await api.get(`/projects/${id}/download`)
-    const zipUrl = data.data.download_url
-    const filename = `project_${id}_designs.zip`
+    try {
+      const { data } = await api.get(`/projects/${id}/download`);
+      const zipUrl = data.data.download_url;
+      const filename = `project_${id}_designs.zip`;
 
-    // FIX: Safely insert the attachment flag directly after /raw/upload/
-    const downloadUrl = zipUrl.replace(
-      '/raw/upload/',
-      `/raw/upload/fl_attachment:${filename}/`
-    )
+      // FIX: Safely insert the attachment flag directly after /raw/upload/
+      const downloadUrl = zipUrl.replace(
+        "/raw/upload/",
+        `/raw/upload/fl_attachment:${filename}/`,
+      );
 
-    const link = document.createElement('a')
-    link.href = downloadUrl
-    // Setting target to _self prevents blank flashing tabs
-    link.target = '_self' 
+      const link = document.createElement("a");
+      link.href = downloadUrl;
+      // Setting target to _self prevents blank flashing tabs
+      link.target = "_self";
 
-    document.body.appendChild(link)
-    link.click()
-    document.body.removeChild(link)
-
-  } catch (err) {
-    console.error(err)
-    setError('Download failed. Try again.')
-  } finally {
-    setDownloading(false)
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    } catch (err) {
+      console.error(err);
+      setError("Download failed. Try again.");
+    } finally {
+      setDownloading(false);
+    }
   }
-}
-
 
   const isDone = status?.status === "done";
   const isFailed = status?.status === "failed";
@@ -173,6 +171,13 @@ export default function ProjectStatusPage() {
                 <div className="rounded-lg bg-amber-50 border border-amber-200 px-4 py-3 text-sm text-amber-700">
                   Waiting for payment to start generation.
                 </div>
+                {/* Add preview button */}
+                <button
+                  onClick={() => navigate(`/projects/${id}/preview`)}
+                  className="btn-secondary w-full"
+                >
+                  👁 Preview designs before paying
+                </button>
                 <button
                   onClick={() =>
                     navigate("/pricing", {

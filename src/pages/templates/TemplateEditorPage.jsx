@@ -255,6 +255,11 @@ export default function TemplateEditorPage() {
 
     fabricRef.current = fc;
 
+    // initialize history for new template
+    const initial = JSON.stringify(fc.toJSON());
+    setHistory([initial]);
+    setHistIdx(0);
+
     fc.on("selection:created", (e) => setSelected(e.selected?.[0] || null));
 
     fc.on("selection:updated", (e) => setSelected(e.selected?.[0] || null));
@@ -267,9 +272,10 @@ export default function TemplateEditorPage() {
 
     // IMPORTANT
 
-    if (!isEdit) return;
-
-    loadTemplate();
+    // only load template in edit mode
+    if (isEdit) {
+      loadTemplate();
+    }
 
     return () => {
       fc.dispose();
@@ -278,13 +284,10 @@ export default function TemplateEditorPage() {
 
   // ── Load existing template ───────────────────────────────────────────────────
   async function loadTemplate() {
-    console.log("runing....");
-
     try {
       const { data } = await api.get(`/templates/${id}`);
 
       const t = data.data;
-      console.log("Loading......", data);
 
       setName(t.name);
       setCategory(t.category);
@@ -417,60 +420,61 @@ export default function TemplateEditorPage() {
   }
 
   function addImagePlaceholder() {
-  const key = prompt("Placeholder key (e.g. photo, logo):", "photo");
-  if (!key) return;
+    const key = prompt("Placeholder key (e.g. photo, logo):", "photo");
+    if (!key) return;
 
-  const W = 180, H = 220;
+    const W = 180,
+      H = 220;
 
-  // Children coords are relative to group CENTER
-  const rect = new fabric.Rect({
-    left: -W / 2,
-    top:  -H / 2,
-    width: W,
-    height: H,
-    fill: "#f0f4ff",
-    stroke: "#6366f1",
-    strokeWidth: 2,
-    strokeDashArray: [6, 4],
-    rx: 4,
-    ry: 4,
-  });
+    // Children coords are relative to group CENTER
+    const rect = new fabric.Rect({
+      left: -W / 2,
+      top: -H / 2,
+      width: W,
+      height: H,
+      fill: "#f0f4ff",
+      stroke: "#6366f1",
+      strokeWidth: 2,
+      strokeDashArray: [6, 4],
+      rx: 4,
+      ry: 4,
+    });
 
-  const text = new fabric.Text(`{${key}}`, {
-    left: 0,
-    top:  0,
-    fontSize: 14,
-    fill: "#6366f1",
-    fontFamily: "Arial",
-    originX: "center",
-    originY: "center",
-    selectable: false,
-    evented: false,
-  });
+    const text = new fabric.Text(`{${key}}`, {
+      left: 0,
+      top: 0,
+      fontSize: 14,
+      fill: "#6366f1",
+      fontFamily: "Arial",
+      originX: "center",
+      originY: "center",
+      selectable: false,
+      evented: false,
+    });
 
-  const group = new fabric.Group([rect, text], {
-    left: 200,
-    top:  50,
-    // Store on the object directly — passed via toObject's extra props
-    _placeholderKey:       key,
-    _isImagePlaceholder:   true,
-  });
+    const group = new fabric.Group([rect, text], {
+      left: 200,
+      top: 50,
+      // Store on the object directly — passed via toObject's extra props
+      _placeholderKey: key,
+      _isImagePlaceholder: true,
+    });
 
-  // Tell Fabric to include these custom props in toJSON/toObject
-  group.toObject = (function (original) {
-    return function (extraProps) {
-      return {
-        ...original.call(this, extraProps),
-        _placeholderKey:     this._placeholderKey,
-        _isImagePlaceholder: this._isImagePlaceholder,
+    // Tell Fabric to include these custom props in toJSON/toObject
+    group.toObject = (function (original) {
+      return function (extraProps) {
+        return {
+          ...original.call(this, extraProps),
+          _placeholderKey: this._placeholderKey,
+          _isImagePlaceholder: this._isImagePlaceholder,
+        };
       };
-    };
-  })(group.toObject);   // ← override toObject, NOT toJSON
+    })(group.toObject); // ← override toObject, NOT toJSON
 
-  fabricRef.current.add(group);
-  fabricRef.current.setActiveObject(group);
-  fabricRef.current.renderAll();
-}
+    fabricRef.current.add(group);
+    fabricRef.current.setActiveObject(group);
+    fabricRef.current.renderAll();
+  }
 
   function uploadBgImage(e) {
     const file = e.target.files[0];
@@ -508,35 +512,35 @@ export default function TemplateEditorPage() {
 
   // ── Save ──────────────────────────────────────────────────────────────────────
   async function handleSave() {
-  setSaving(true);
-  setError("");
-  try {
-    // Tell Fabric to include custom props in the serialized JSON
-    const canvasJson = JSON.stringify(
-      fabricRef.current.toJSON(["_placeholderKey", "_isImagePlaceholder"])
-    );
-    const payload = {
-      name,
-      category,
-      canvas_json: canvasJson,
-      width_px: width,
-      height_px: height,
-    };
+    setSaving(true);
+    setError("");
+    try {
+      // Tell Fabric to include custom props in the serialized JSON
+      const canvasJson = JSON.stringify(
+        fabricRef.current.toJSON(["_placeholderKey", "_isImagePlaceholder"]),
+      );
+      const payload = {
+        name,
+        category,
+        canvas_json: canvasJson,
+        width_px: width,
+        height_px: height,
+      };
 
-    if (isEdit) {
-      await api.put(`/templates/${id}`, payload);
-    } else {
-      const { data } = await api.post("/templates", payload);
-      navigate(`/templates/${data.data.id}/edit`, { replace: true });
+      if (isEdit) {
+        await api.put(`/templates/${id}`, payload);
+      } else {
+        const { data } = await api.post("/templates", payload);
+        navigate(`/templates/${data.data.id}/edit`, { replace: true });
+      }
+    } catch (err) {
+      setError(
+        err.response?.data?.error?.description || "Failed to save template",
+      );
+    } finally {
+      setSaving(false);
     }
-  } catch (err) {
-    setError(
-      err.response?.data?.error?.description || "Failed to save template",
-    );
-  } finally {
-    setSaving(false);
   }
-}
 
   // ── Canvas size change ────────────────────────────────────────────────────────
   function applySize() {

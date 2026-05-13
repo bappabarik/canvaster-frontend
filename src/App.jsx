@@ -13,6 +13,7 @@ import TemplateEditorPage from '@/pages/templates/TemplateEditorPage'
 import ProjectsPage       from '@/pages/projects/ProjectsPage'
 import ProjectWizardPage  from '@/pages/projects/ProjectWizardPage'
 import ProjectStatusPage  from '@/pages/projects/ProjectStatusPage'
+import ProjectPreviewPage from '@/pages/projects/ProjectPreviewPage'
 import PricingPage        from '@/pages/PricingPage'
 
 function AppShell({ children }) {
@@ -43,6 +44,7 @@ export default function App() {
           <Route path="/projects"            element={<AppShell><ProjectsPage /></AppShell>} />
           <Route path="/projects/new"        element={<AppShell><ProjectWizardPage /></AppShell>} />
           <Route path="/projects/:id/status" element={<AppShell><ProjectStatusPage /></AppShell>} />
+          <Route path="/projects/:id/preview" element={<AppShell><ProjectPreviewPage /></AppShell>} />
           <Route path="/pricing"             element={<AppShell><PricingPage /></AppShell>} />
 
           <Route path="/"  element={<Navigate to="/dashboard" replace />} />
