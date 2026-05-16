@@ -10,7 +10,7 @@ function PricingCard({ tier, recommended, onBuy, buying }) {
       recommended ? 'ring-2 ring-brand-500 shadow-md' : ''
     }`}>
       {recommended && (
-        <div className="absolute -top-3 left-1/2 -translate-x-1/2">
+        <div className="absolute -top-3 md:left-[47%] left-1/2 -translate-x-1/2">
           <span className="bg-brand-600 text-white text-xs font-semibold px-3 py-1 rounded-full">Most popular</span>
         </div>
       )}
@@ -135,7 +135,7 @@ export default function PricingPage() {
   if (loading) return <div className="flex justify-center py-16"><Spinner className="w-8 h-8" /></div>
 
   return (
-    <div className="space-y-8 max-w-5xl">
+    <div className="space-y-8 max-w-5xl md:p-0 p-4">
       <div>
         <h1 className="page-header">Design credits</h1>
         <p className="text-gray-500 mt-1">

@@ -239,6 +239,9 @@ export default function ProjectPreviewPage() {
       const { data } = await api.get(`/projects/${id}/preview?row=${index}`)
       const d = data.data
 
+      console.log(d.width_px);
+      
+
       if (index === 0) {
         setTotalRows(d.total_rows)
         setProjectName(d.project_name || `Project #${id}`)
